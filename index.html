@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fdf6e9">
 <title>數獨</title>
 <style>
   :root {
@@ -12,14 +13,24 @@
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin: 0; background: var(--bg); font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; color: #333;
-         display: flex; flex-direction: column; align-items: center; padding: 12px; }
-  h1 { margin: 4px 0 8px; font-size: 28px; }
-  .bar { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; font-size: 20px; }
-  select, button { font: inherit; font-size: 20px; border-radius: 12px; border: 2px solid var(--btn); padding: 10px 16px; background: #fff; color: #333; }
-  button { background: var(--btn); color: #fff; border: none; font-weight: bold; cursor: pointer; }
+         display: flex; flex-direction: column; align-items: center; padding: 10px 12px 24px; touch-action: manipulation; }
+  button { font: inherit; font-size: 20px; border-radius: 12px; border: 2px solid var(--btn); padding: 10px 16px;
+           background: var(--btn); color: #fff; font-weight: bold; cursor: pointer; }
   button:active { transform: scale(.96); }
-  button.alt { background: #fff; color: var(--btn); border: 2px solid var(--btn); }
+  button.alt { background: #fff; color: var(--btn); }
   button.on { background: #1c6fd1; color: #fff; border-color: #1c6fd1; }
+  .row { width: min(94vw, 560px); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  h1 { margin: 0; font-size: 26px; }
+  .top button { font-size: 16px; padding: 6px 10px; }
+  .top .btns { display: flex; gap: 6px; }
+  #sum { margin: 8px 0; font-size: 18px; color: #7a4a1e; background: #fff3dc; border-radius: 999px; padding: 6px 16px; cursor: pointer; text-align: center; }
+  #levels { display: flex; gap: 8px; width: min(94vw, 560px); }
+  #levels button { flex: 1; padding: 6px 0; font-size: 21px; line-height: 1.15; background: #fff; color: var(--btn); }
+  #levels button small { display: block; font-size: 12px; letter-spacing: 1px; }
+  #levels button.cur { background: var(--btn); color: #fff; }
+  .info { margin: 8px auto 4px; font-size: 19px; }
+  #prog { width: min(94vw, 560px); height: 10px; background: #eadfcc; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+  #progbar { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f6b042, #e8742a); transition: width .4s; }
   #board { --size: min(94vw, 62vh, 560px); width: var(--size); height: var(--size); display: grid;
            grid-template-columns: repeat(9, 1fr); border: 3px solid var(--line); background: var(--card); touch-action: manipulation; }
   .cell { display: flex; align-items: center; justify-content: center; border: 1px solid var(--thin); position: relative;
@@ -32,29 +43,57 @@
   .cell.given { color: var(--given); font-weight: bold; }
   .cell.user { color: var(--user); }
   .cell.bad { color: var(--err); background: #fde0dd; }
+  @keyframes wave { 40% { background-color: #9be3a8; transform: scale(1.18); z-index: 2; } }
+  .cell.wave { animation: wave .9s ease; }
+  @media (prefers-reduced-motion: reduce) { .cell.wave { animation: none; background-color: #9be3a8; } }
   .notes { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; height: 100%; font-size: calc(var(--size) / 34); color: #777; }
   .notes span { display: flex; align-items: center; justify-content: center; }
   #pad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 12px; width: min(94vw, 560px); }
-  #pad button { font-size: 30px; padding: 12px 0; }
-  #pad button.wide { font-size: 20px; }
-  #msg { min-height: 36px; margin-top: 10px; font-size: 22px; font-weight: bold; text-align: center; }
-  .win { color: #1e8e3e; }
+  #pad button { font-size: 30px; padding: 10px 0; }
+  #pad button.wide { font-size: 19px; white-space: nowrap; }
+  #msg { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 92vw; z-index: 40; pointer-events: none;
+         background: #3b2a1a; color: #fff; padding: 10px 18px; border-radius: 14px; font-size: 20px; font-weight: bold; text-align: center;
+         box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  #msg:empty { display: none; }
+  #msg.win { background: #1e8e3e; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 12px; }
+  .modal[hidden] { display: none; }
+  .card { background: #fff; border-radius: 22px; padding: 22px 20px; width: min(92vw, 420px); text-align: center; font-size: 21px; max-height: 92vh; overflow: auto; }
+  .card h2 { margin: 6px 0 10px; font-size: 28px; }
+  .card p { margin: 8px 0; }
+  .card .big { font-size: 64px; line-height: 1; }
+  .card .best { color: #c2570c; font-weight: bold; }
+  .card table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 19px; }
+  .card th, .card td { border-bottom: 1px solid #eee; padding: 6px 4px; }
+  .card th { color: #888; font-weight: normal; font-size: 16px; }
+  .card button.ok { display: block; width: 100%; margin-top: 10px; font-size: 22px; padding: 12px; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
 </style>
 </head>
 <body>
-<h1>🧩 數獨</h1>
-<div class="bar">
-  <select id="level">
-    <option value="38">簡單</option>
-    <option value="32" selected>普通</option>
-    <option value="27">困難</option>
-  </select>
-  <button id="new">新遊戲</button>
-  <span>⏱ <b id="time">00:00</b></span>
+<div class="row top">
+  <h1>🧩 數獨</h1>
+  <div class="btns">
+    <button id="snd" class="alt"></button>
+    <button id="rec" class="alt">📊 紀錄</button>
+  </div>
 </div>
+<div id="sum" role="button"></div>
+<div id="levels">
+  <button data-l="easy">簡單<small>★</small></button>
+  <button data-l="normal">普通<small>★★</small></button>
+  <button data-l="hard">困難<small>★★★</small></button>
+  <button data-l="expert">專家<small>★★★★</small></button>
+</div>
+<div class="row info">
+  <span>⏱ <b id="time">00:00</b></span>
+  <span id="left"></span>
+</div>
+<div id="prog"><i id="progbar"></i></div>
 <div id="board"></div>
 <div id="pad"></div>
 <div id="msg"></div>
+<div id="modal" class="modal" hidden><div class="card" id="card"></div></div>
 
 <script>
 // ---------- 數獨產生器 ----------
@@ -84,7 +123,7 @@ function count(g, limit) { // 計算解的數量(最多算到 limit)
   for (const v of opts) { g[best] = v; n += count(g, limit - n); g[best] = 0; if (n >= limit) break; }
   return n;
 }
-function generate(clues) {
+function makePuzzle(clues) { // 隨機挖空,並確保只有一個解
   const sol = Array(81).fill(0); fill(sol);
   const puz = sol.slice();
   let left = 81;
@@ -96,35 +135,249 @@ function generate(clues) {
   return { puz, sol };
 }
 
-// ---------- 遊戲狀態 ----------
-let puz, sol, cur, notes, sel = -1, noteMode = false, history = [], secs = 0, timer = null, done = false;
-const $ = id => document.getElementById(id);
-const boardEl = $('board'), msgEl = $('msg');
+// ---------- 難度評分:模擬人腦解題,看需要用到哪些技巧 ----------
+const UNITS = []; // 每個 i 依序放入:橫排、直排、小方塊,所以 UNITS[3*k+0/1/2]
+for (let i = 0; i < 9; i++) {
+  const row = [], col = [], box = [], br = i - i % 3, bc = (i % 3) * 3;
+  for (let k = 0; k < 9; k++) { row.push(i * 9 + k); col.push(k * 9 + i); box.push((br + (k / 3 | 0)) * 9 + bc + k % 3); }
+  UNITS.push(row, col, box);
+}
+const PEERS = Array.from({ length: 81 }, (_, i) => [...new Set(UNITS.filter(u => u.includes(i)).flat())].filter(c => c !== i));
+const pop = m => { let n = 0; for (; m; m &= m - 1) n++; return n; };
+// 1=只靠「唯一候選數」就能解  2=還要「唯一位置」  3=還要「區塊排除」或「數對」  4=更難
+function grade(puz) {
+  const g = puz.slice(), cand = Array(81).fill(0);
+  for (let i = 0; i < 81; i++) if (!g[i]) for (let v = 1; v <= 9; v++) if (ok(g, i, v)) cand[i] |= 1 << (v - 1);
+  const put = (i, v) => { g[i] = v; cand[i] = 0; for (const p of PEERS[i]) cand[p] &= ~(1 << (v - 1)); };
+  const naked = () => {
+    let hit = false;
+    for (let i = 0; i < 81; i++) if (!g[i] && pop(cand[i]) === 1) { put(i, 32 - Math.clz32(cand[i])); hit = true; }
+    return hit;
+  };
+  const hidden = () => {
+    for (const u of UNITS) for (let v = 1; v <= 9; v++) {
+      const b = 1 << (v - 1); let at = -1, n = 0, placed = false;
+      for (const c of u) { if (g[c] === v) { placed = true; break; } if (cand[c] & b) { n++; at = c; } }
+      if (!placed && n === 1) { put(at, v); return true; }
+    }
+    return false;
+  };
+  const locked = () => { // 某數字在一個範圍裡只可能出現在同一條線/同一個方塊 → 其他地方可以排除
+    for (let v = 1; v <= 9; v++) {
+      const b = 1 << (v - 1);
+      for (let ui = 0; ui < 27; ui++) {
+        const cells = UNITS[ui].filter(c => cand[c] & b);
+        if (cells.length < 2 || cells.length > 3) continue;
+        let hit = false;
+        for (let uj = 0; uj < 27; uj++) {
+          if (uj % 3 === ui % 3) continue;
+          const w = UNITS[uj];
+          if (!cells.every(c => w.includes(c))) continue;
+          for (const c of w) if (!cells.includes(c) && (cand[c] & b)) { cand[c] &= ~b; hit = true; }
+        }
+        if (hit) return true;
+      }
+    }
+    return false;
+  };
+  const pairs = () => { // 兩格都只剩同樣兩個數字 → 同範圍其他格不可能是這兩個數字
+    for (const u of UNITS) {
+      const e = u.filter(c => !g[c] && pop(cand[c]) === 2);
+      for (let a = 0; a < e.length; a++) for (let b = a + 1; b < e.length; b++) {
+        if (cand[e[a]] !== cand[e[b]]) continue;
+        const m = cand[e[a]]; let hit = false;
+        for (const c of u) if (c !== e[a] && c !== e[b] && (cand[c] & m)) { cand[c] &= ~m; hit = true; }
+        if (hit) return true;
+      }
+    }
+    return false;
+  };
+  let lvl = 1;
+  while (g.includes(0)) {
+    if (naked()) continue;
+    if (hidden()) { lvl = Math.max(lvl, 2); continue; }
+    if (locked() || pairs()) { lvl = Math.max(lvl, 3); continue; }
+    return 4;
+  }
+  return lvl;
+}
+const LEVELS = {
+  easy:   { name: '簡單', clues: 38, lo: 1, hi: 2 },
+  normal: { name: '普通', clues: 32, lo: 2, hi: 3 },
+  hard:   { name: '困難', clues: 28, lo: 3, hi: 3 },
+  expert: { name: '專家', clues: 24, lo: 4, hi: 4 },
+};
+function generate(key) { // 反覆出題,直到難度符合;最多試 2.5 秒,否則用最接近的
+  const L = LEVELS[key], t0 = Date.now();
+  const dist = p => p.gr < L.lo ? L.lo - p.gr : p.gr > L.hi ? p.gr - L.hi : 0;
+  let best = null;
+  do {
+    const p = makePuzzle(L.clues); p.gr = grade(p.puz);
+    if (dist(p) === 0) return p;
+    if (!best || dist(p) < dist(best)) best = p;
+  } while (Date.now() - t0 < 2500);
+  return best;
+}
 
-function save() { try { localStorage.setItem('sudoku', JSON.stringify({ puz, sol, cur, notes: notes.map(s => [...s]), secs, level: $('level').value })); } catch (e) {} }
+// ---------- 聲音:背景音樂與音效(用瀏覽器即時合成,不需要音檔) ----------
+function makeSynth(ctx) {
+  const STEP = 0.55; // 每個音的間隔(秒)
+  const CHORDS = [
+    { pad: [48, 55], arp: [60, 64, 67, 71, 72] }, // C
+    { pad: [45, 52], arp: [57, 60, 64, 67, 69] }, // Am
+    { pad: [41, 48], arp: [57, 60, 64, 65, 69] }, // F
+    { pad: [43, 50], arp: [59, 62, 64, 67, 71] }, // G
+  ];
+  const PATTERN = [0, 2, 1, 3, 2, 4, 3, 1];
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  const comp = ctx.createDynamicsCompressor(), master = ctx.createGain(), bus = ctx.createGain();
+  const dly = ctx.createDelay(1), lp = ctx.createBiquadFilter(), fb = ctx.createGain(), wet = ctx.createGain();
+  master.gain.value = 0.5; dly.delayTime.value = 0.41; lp.type = 'lowpass'; lp.frequency.value = 1800; fb.gain.value = 0.38; wet.gain.value = 0.45;
+  bus.connect(master); bus.connect(dly); dly.connect(lp); lp.connect(fb); fb.connect(dly); lp.connect(wet); wet.connect(master);
+  master.connect(comp); comp.connect(ctx.destination);
+
+  function tone(type, freq, t, peak, attack, dur) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.05);
+  }
+  const pluck = (m, t, v, dur = 1.7) => tone('triangle', hz(m), t, v, 0.015, dur);
+  const bell = (m, t, v, dur = 2) => { tone('sine', hz(m), t, v, 0.01, dur); tone('sine', hz(m) * 2.01, t, v * 0.25, 0.01, dur * 0.6); };
+  function pad(m, t, dur) {
+    for (const d of [-5, 5]) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = hz(m); o.detune.value = d;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.045, t + 1.3);
+      g.gain.setValueAtTime(0.045, t + dur);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.5);
+      o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 1.6);
+    }
+  }
+  let next = 0, step = 0;
+  return {
+    reset(t) { next = t; },
+    fill(until) { // 把 until 之前的音符排進時間表
+      if (next < ctx.currentTime) next = ctx.currentTime + 0.05;
+      while (next < until) {
+        const s = step % 32, ch = CHORDS[s >> 3], k = s & 7;
+        if (k === 0) ch.pad.forEach(m => pad(m, next, STEP * 8));
+        if (Math.random() < 0.92) pluck(ch.arp[PATTERN[k]], next, k === 0 || k === 4 ? 0.2 : 0.14);
+        if ((k === 0 || k === 4) && Math.random() < 0.5) pluck(ch.arp[Math.random() * 5 | 0] + 12, next + STEP / 2, 0.07, 2.2);
+        next += STEP; step++;
+      }
+    },
+    chime() { const t = ctx.currentTime + 0.02; [76, 79, 84].forEach((m, i) => bell(m, t + i * 0.09, 0.18, 1.6)); },
+    fanfare() {
+      const t = ctx.currentTime + 0.05;
+      [72, 76, 79, 84, 88].forEach((m, i) => bell(m, t + i * 0.12, 0.2, 2));
+      [72, 79, 84, 88].forEach(m => bell(m, t + 0.8, 0.14, 3.5));
+    },
+  };
+}
+const Sound = {
+  on: true, ctx: null, syn: null, timer: null, started: false,
+  ensure() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      this.ctx = new AC(); this.syn = makeSynth(this.ctx);
+    }
+    if (this.ctx.state !== 'running') this.ctx.resume();
+    return true;
+  },
+  start() {
+    if (!this.on || !this.ensure() || this.timer) return;
+    if (!this.started) { this.syn.reset(this.ctx.currentTime + 0.2); this.started = true; }
+    const go = () => this.syn.fill(this.ctx.currentTime + 0.6);
+    go(); this.timer = setInterval(go, 200);
+  },
+  stop() { clearInterval(this.timer); this.timer = null; if (this.ctx && this.ctx.state === 'running') this.ctx.suspend(); },
+  fx(name) { if (this.on && this.ctx && this.ctx.state === 'running') this.syn[name](); },
+};
+
+// ---------- 紀錄 ----------
+const $ = id => document.getElementById(id);
+const dayStr = off => { const d = new Date(); d.setDate(d.getDate() + off); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const fmt = s => String(s / 60 | 0).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+const stats = { done: 0, clean: 0, best: {}, cnt: {}, streak: 0, last: '', todayDay: '', today: 0 };
+try { Object.assign(stats, JSON.parse(localStorage.getItem('sudoku-stats')) || {}); } catch (e) {}
+const saveStats = () => { try { localStorage.setItem('sudoku-stats', JSON.stringify(stats)); } catch (e) {} };
+const streakNow = () => (stats.last === dayStr(0) || stats.last === dayStr(-1)) ? stats.streak : 0;
+const todayNow = () => stats.todayDay === dayStr(0) ? stats.today : 0;
+function renderSummary() {
+  const s = streakNow(), parts = [];
+  if (s) parts.push('🔥 連續 ' + s + ' 天');
+  parts.push('✅ 今天完成 ' + todayNow() + ' 盤');
+  $('sum').textContent = parts.join('  ·  ');
+}
+function recordWin() {
+  const t = dayStr(0), prev = stats.best[level];
+  stats.done++; if (!hints) stats.clean++;
+  stats.cnt[level] = (stats.cnt[level] || 0) + 1;
+  if (stats.todayDay !== t) { stats.todayDay = t; stats.today = 0; }
+  stats.today++;
+  if (stats.last !== t) { stats.streak = stats.last === dayStr(-1) ? stats.streak + 1 : 1; stats.last = t; }
+  const isBest = !hints && (!prev || secs < prev);
+  if (isBest) stats.best[level] = secs;
+  saveStats();
+  return { isBest, prev };
+}
+function openModal(html) { $('card').innerHTML = html; $('modal').hidden = false; }
+function closeModal() { $('modal').hidden = true; }
+function showRecords() {
+  const rows = Object.keys(LEVELS).map(k => '<tr><td>' + LEVELS[k].name + '</td><td>' + (stats.cnt[k] || 0) + ' 盤</td><td>' + (stats.best[k] ? fmt(stats.best[k]) : '—') + '</td></tr>').join('');
+  openModal('<h2>📊 我的紀錄</h2>'
+    + '<p>🔥 連續玩了 <b>' + streakNow() + '</b> 天</p>'
+    + '<p>✅ 今天完成 <b>' + todayNow() + '</b> 盤</p>'
+    + '<p>🏆 累計完成 <b>' + stats.done + '</b> 盤(沒用提示 ' + stats.clean + ' 盤)</p>'
+    + '<table><tr><th>難度</th><th>完成</th><th>最快(沒用提示)</th></tr>' + rows + '</table>'
+    + '<button class="ok" onclick="closeModal()">關閉</button>');
+}
+
+// ---------- 遊戲狀態 ----------
+let puz, sol, cur, notes, level = 'normal', hints = 0, sel = -1, noteMode = false, history = [], secs = 0, timer = null, done = false, firstRun = true;
+const wave = new Set();
+const boardEl = $('board'), msgEl = $('msg');
+const unitIdx = i => { const r = i / 9 | 0, c = i % 9; return [3 * r, 3 * c + 1, 3 * ((r / 3 | 0) * 3 + (c / 3 | 0)) + 2]; };
+const complete = u => UNITS[u].every(c => cur[c] === sol[c]);
+
+function save() { try { localStorage.setItem('sudoku', JSON.stringify({ puz, sol, cur, notes: notes.map(s => [...s]), secs, level, hints })); } catch (e) {} }
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem('sudoku'));
-    if (!d) return false;
-    puz = d.puz; sol = d.sol; cur = d.cur; notes = d.notes.map(a => new Set(a)); secs = d.secs; $('level').value = d.level;
+    if (!d || !d.puz || !d.sol || !d.cur) return false;
+    puz = d.puz; sol = d.sol; cur = d.cur; notes = d.notes.map(a => new Set(a)); secs = d.secs || 0; hints = d.hints || 0;
+    level = LEVELS[d.level] ? d.level : 'normal';
     return true;
   } catch (e) { return false; }
 }
 
 function newGame() {
-  msgEl.textContent = '產生題目中…';
+  say('產生題目中…', 0);
   setTimeout(() => {
-    const g = generate(+$('level').value);
-    puz = g.puz; sol = g.sol; cur = puz.slice(); notes = Array.from({ length: 81 }, () => new Set()); secs = 0;
+    const g = generate(level);
+    puz = g.puz; sol = g.sol; cur = puz.slice(); notes = Array.from({ length: 81 }, () => new Set()); secs = 0; hints = 0;
     start();
   }, 30);
 }
+function levelStart(key) { closeModal(); level = key; setLevelUI(); newGame(); }
+function setLevelUI() { document.querySelectorAll('#levels button').forEach(b => b.classList.toggle('cur', b.dataset.l === level)); }
 function start() {
-  sel = -1; history = []; done = false; msgEl.textContent = ''; msgEl.className = '';
+  sel = -1; history = []; done = false; say('');
   clearInterval(timer); timer = setInterval(() => { if (!done) { secs++; tick(); if (secs % 5 === 0) save(); } }, 1000);
   tick(); render(); save();
+  if (firstRun) { firstRun = false; greet(); }
 }
-function tick() { $('time').textContent = String(secs / 60 | 0).padStart(2, '0') + ':' + String(secs % 60).padStart(2, '0'); }
+function greet() {
+  const s = streakNow();
+  if (!stats.done) say('點一個空格,再點下面的數字就能填 😊');
+  else if (s && !todayNow()) say('您已連續玩了 ' + s + ' 天,今天也來一盤吧!');
+}
+function tick() { $('time').textContent = fmt(secs); }
 
 // ---------- 畫面 ----------
 function build() {
@@ -137,7 +390,7 @@ function build() {
   const mk = (t, f, cls, id) => { const b = document.createElement('button'); b.textContent = t; b.className = 'wide ' + (cls || ''); if (id) b.id = id; b.onclick = f; pad.appendChild(b); };
   mk('清除', () => input(0));
   mk('復原', undo, 'alt');
-  mk('筆記:關', () => { noteMode = !noteMode; $('noteBtn').textContent = '筆記:' + (noteMode ? '開' : '關'); $('noteBtn').classList.toggle('on', noteMode); }, 'alt', 'noteBtn');
+  mk('筆記', () => { noteMode = !noteMode; $('noteBtn').textContent = noteMode ? '筆記中' : '筆記'; $('noteBtn').classList.toggle('on', noteMode); }, 'alt', 'noteBtn');
   mk('提示', hint, 'alt');
   mk('檢查', check, 'alt');
 }
@@ -153,17 +406,22 @@ function render() {
       else if (r === sr || c === sc || ((r / 3 | 0) === (sr / 3 | 0) && (c / 3 | 0) === (sc / 3 | 0))) cls += ' peer';
     }
     if (puz[i]) cls += ' given'; else if (v) cls += ' user';
+    if (wave.has(i)) cls += ' wave';
     el.className = cls;
     if (v) el.textContent = v;
     else if (notes[i].size) el.innerHTML = '<div class="notes">' + [1,2,3,4,5,6,7,8,9].map(n => '<span>' + (notes[i].has(n) ? n : '') + '</span>').join('') + '</div>';
     else el.textContent = '';
   }
+  const empty = cur.filter(v => !v).length;
+  $('left').textContent = '還剩 ' + empty + ' 格';
+  $('progbar').style.width = (81 - empty) / 81 * 100 + '%';
 }
 function input(n) {
-  if (done) return;
+  if (done || !$('modal').hidden) return;
   if (sel < 0) { say('請先點一個格子'); return; }
   if (puz[sel]) { say('這格是題目,不能改'); return; }
   history.push({ i: sel, v: cur[sel], n: new Set(notes[sel]) });
+  const before = unitIdx(sel).map(complete);
   if (n && noteMode) { cur[sel] = 0; notes[sel].has(n) ? notes[sel].delete(n) : notes[sel].add(n); }
   else {
     cur[sel] = n; notes[sel].clear(); say('');
@@ -172,7 +430,8 @@ function input(n) {
       for (let i = 0; i < 81; i++) if ((i / 9 | 0) === r || i % 9 === c || ((i / 27 | 0) === (r / 3 | 0) && (i % 9 / 3 | 0) === (c / 3 | 0))) notes[i].delete(n);
     }
   }
-  render(); save(); checkWin();
+  render(); save();
+  if (!checkWin()) celebrate(sel, before);
 }
 function undo() {
   const h = history.pop(); if (!h || done) return;
@@ -182,8 +441,10 @@ function hint() {
   if (done) return;
   let i = (sel >= 0 && !puz[sel] && cur[sel] !== sol[sel]) ? sel : -1;
   if (i < 0) { const bad = [...Array(81).keys()].filter(k => !puz[k] && cur[k] !== sol[k]); if (!bad.length) return; i = bad[Math.random() * bad.length | 0]; }
+  const before = unitIdx(i).map(complete);
   history.push({ i, v: cur[i], n: new Set(notes[i]) });
-  cur[i] = sol[i]; notes[i].clear(); sel = i; render(); save(); say('已幫您填入一格 👍'); checkWin();
+  cur[i] = sol[i]; notes[i].clear(); sel = i; hints++; render(); save();
+  if (!checkWin() && !celebrate(i, before)) say('已幫您填入一格 👍');
 }
 function check() {
   if (done) return;
@@ -192,15 +453,67 @@ function check() {
   say(bad ? `有 ${bad} 格填錯了(紅色)` : '目前都是對的,繼續加油!');
   if (bad) setTimeout(render, 2500);
 }
-function say(t) { msgEl.textContent = t; msgEl.className = ''; }
-function checkWin() {
-  if (cur.every((v, i) => v === sol[i])) {
-    done = true; clearInterval(timer); msgEl.className = 'win';
-    msgEl.textContent = `🎉 恭喜完成!用了 ${$('time').textContent}`;
-    try { localStorage.removeItem('sudoku'); } catch (e) {}
-  }
+let msgTimer;
+function say(t, ms = 5000) { // 訊息浮在畫面上方,幾秒後自動消失(ms=0 表示不自動消失)
+  clearTimeout(msgTimer); msgEl.textContent = t; msgEl.className = '';
+  if (t && ms) msgTimer = setTimeout(() => { msgEl.textContent = ''; }, ms);
 }
+
+// 完成一橫排/一直排/一個小方塊時:格子依序亮起,並有提示音
+function celebrate(i, before) {
+  const idx = unitIdx(i), now = idx.map(complete), names = ['這一橫排', '這一直排', '這個小方塊'];
+  const hit = idx.map((u, k) => ({ u, k })).filter(x => now[x.k] && !before[x.k]);
+  if (!hit.length) return false;
+  hit.forEach(x => UNITS[x.u].forEach((c, j) => { boardEl.children[c].style.animationDelay = j * 60 + 'ms'; wave.add(c); }));
+  Sound.fx('chime'); say('✨ ' + names[hit[0].k] + '完成了!');
+  render();
+  setTimeout(() => { hit.forEach(x => UNITS[x.u].forEach(c => wave.delete(c))); render(); }, 1600);
+  return true;
+}
+function checkWin() {
+  if (!cur.every((v, i) => v === sol[i])) return false;
+  win(); return true;
+}
+const PRAISE = ['太棒了!', '您真厲害!', '腦筋轉得真快!', '漂亮!完成了!', '太神了!'];
+function win() {
+  done = true; clearInterval(timer);
+  const r = recordWin(); renderSummary();
+  try { localStorage.removeItem('sudoku'); } catch (e) {}
+  say('🎉 恭喜完成!', 0); msgEl.className = 'win';
+  Sound.fx('fanfare'); confetti();
+  const L = LEVELS[level].name;
+  let rec = '';
+  if (r.isBest) rec = r.prev ? '<p class="best">🏆 新紀錄!比之前快了 ' + (r.prev - secs) + ' 秒</p>' : '<p class="best">🏆 這是「' + L + '」的第一個紀錄!</p>';
+  else if (stats.best[level]) rec = '<p>「' + L + '」最快紀錄:' + fmt(stats.best[level]) + '</p>';
+  openModal('<div class="big">🎉</div><h2>' + PRAISE[Math.random() * PRAISE.length | 0] + '</h2>'
+    + '<p>完成「' + L + '」,用了 <b>' + fmt(secs) + '</b></p>'
+    + '<p>' + (hints ? '用了 ' + hints + ' 次提示' : '⭐ 沒有用提示') + '</p>' + rec
+    + '<button class="ok" onclick="levelStart(\'' + level + '\')">再玩一盤</button>'
+    + '<button class="ok alt" onclick="closeModal()">看看盤面</button>');
+}
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv = document.createElement('canvas'); cv.id = 'confetti';
+  cv.width = innerWidth; cv.height = innerHeight; document.body.appendChild(cv);
+  const g = cv.getContext('2d'), cols = ['#f6b042', '#e8742a', '#1c6fd1', '#2e9e5b', '#e0457b', '#8e5bd6'];
+  const ps = Array.from({ length: 140 }, () => ({
+    x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * 0.5, w: 6 + Math.random() * 8, h: 10 + Math.random() * 10,
+    vx: -1.5 + Math.random() * 3, vy: 2 + Math.random() * 4, r: Math.random() * 6.28, vr: -0.2 + Math.random() * 0.4, c: cols[Math.random() * cols.length | 0],
+  }));
+  const t0 = performance.now();
+  (function frame(now) {
+    g.clearRect(0, 0, cv.width, cv.height);
+    for (const p of ps) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.04; p.r += p.vr;
+      g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore();
+    }
+    if (now - t0 < 5000) requestAnimationFrame(frame); else cv.remove();
+  })(t0);
+}
+
+// ---------- 事件 ----------
 document.addEventListener('keydown', e => {
+  if (!$('modal').hidden) { if (e.key === 'Escape') closeModal(); return; }
   if (e.key >= '1' && e.key <= '9') input(+e.key);
   else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') input(0);
   else if (sel >= 0 && e.key.startsWith('Arrow')) {
@@ -211,10 +524,28 @@ document.addEventListener('keydown', e => {
     render();
   }
 });
-$('new').onclick = () => { if (done || confirm('要開始新遊戲嗎?目前進度會消失。')) newGame(); };
+document.querySelectorAll('#levels button').forEach(b => b.onclick = () => {
+  const key = b.dataset.l;
+  if (cur && !done && cur.some((v, i) => v !== puz[i]) && !confirm('要開始新的「' + LEVELS[key].name + '」遊戲嗎?目前的進度會消失。')) return;
+  levelStart(key);
+});
+$('modal').onclick = e => { if (e.target === $('modal')) closeModal(); };
+$('sum').onclick = $('rec').onclick = showRecords;
+function soundLabel() { $('snd').textContent = Sound.on ? '🔊 聲音:開' : '🔇 聲音:關'; }
+$('snd').onclick = () => {
+  Sound.on = !Sound.on;
+  try { localStorage.setItem('sudoku-sound', Sound.on ? '1' : '0'); } catch (e) {}
+  if (Sound.on) Sound.start(); else Sound.stop();
+  soundLabel();
+};
+// 瀏覽器規定要使用者點一下才能發聲,所以第一次點畫面時才開始播音樂
+['click', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, () => Sound.start(), { passive: true }));
+document.addEventListener('visibilitychange', () => { if (document.hidden) Sound.stop(); else if (Sound.ctx) Sound.start(); });
 
 build();
-if (load()) { start(); } else newGame();
+try { Sound.on = localStorage.getItem('sudoku-sound') !== '0'; } catch (e) {}
+soundLabel(); renderSummary();
+if (load()) { setLevelUI(); start(); } else { setLevelUI(); newGame(); }
 </script>
 </body>
 </html>
