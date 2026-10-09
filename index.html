@@ -221,60 +221,79 @@ function generate(key) { // 反覆出題,直到難度符合;最多試 2.5 秒,�
 
 // ---------- 聲音:背景音樂與音效(用瀏覽器即時合成,不需要音檔) ----------
 function makeSynth(ctx) {
-  const STEP = 0.55; // 每個音的間隔(秒)
+  // 放鬆風格:緩慢流動的和弦鋪底 + 輕柔的琶音 + 偶爾出現的高音鈴聲,再加上很長的回音
+  const CH = 12, ARP = 1.5; // 每個和弦 12 秒;琶音每 1.5 秒一個音(一個和弦 8 個音)
   const CHORDS = [
-    { pad: [48, 55], arp: [60, 64, 67, 71, 72] }, // C
-    { pad: [45, 52], arp: [57, 60, 64, 67, 69] }, // Am
-    { pad: [41, 48], arp: [57, 60, 64, 65, 69] }, // F
-    { pad: [43, 50], arp: [59, 62, 64, 67, 71] }, // G
+    { pad: [48, 55, 59, 64], arp: [60, 64, 67, 71], bell: [72, 74, 76, 79, 83] }, // C
+    { pad: [45, 52, 55, 60], arp: [57, 60, 64, 67], bell: [72, 76, 79, 81, 83] }, // Am
+    { pad: [41, 48, 52, 57], arp: [53, 57, 60, 64], bell: [72, 76, 77, 79, 81] }, // F
+    { pad: [43, 50, 59, 64], arp: [55, 59, 62, 64], bell: [74, 76, 79, 81, 83] }, // G
   ];
-  const PATTERN = [0, 2, 1, 3, 2, 4, 3, 1];
+  const PATTERN = [0, 1, 2, 3, 2, 1, 2, 1];
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
-  const comp = ctx.createDynamicsCompressor(), master = ctx.createGain(), bus = ctx.createGain();
-  const dly = ctx.createDelay(1), lp = ctx.createBiquadFilter(), fb = ctx.createGain(), wet = ctx.createGain();
-  master.gain.value = 0.5; dly.delayTime.value = 0.41; lp.type = 'lowpass'; lp.frequency.value = 1800; fb.gain.value = 0.38; wet.gain.value = 0.45;
-  bus.connect(master); bus.connect(dly); dly.connect(lp); lp.connect(fb); fb.connect(dly); lp.connect(wet); wet.connect(master);
+  const master = ctx.createGain(), comp = ctx.createDynamicsCompressor(), bus = ctx.createGain(), dry = ctx.createGain();
+  const padBus = ctx.createGain(), padLP = ctx.createBiquadFilter();
+  const verb = ctx.createConvolver(), verbLP = ctx.createBiquadFilter(), wet = ctx.createGain();
+  master.gain.value = 1; dry.gain.value = 0.7; wet.gain.value = 0.7;
+  comp.threshold.value = -10; comp.knee.value = 6; comp.ratio.value = 6; // 只當保險,避免聲音突然過大
+  padLP.type = 'lowpass'; padLP.frequency.value = 900; verbLP.type = 'lowpass'; verbLP.frequency.value = 2800;
+  const len = Math.floor(ctx.sampleRate * 3.5), ir = ctx.createBuffer(2, len, ctx.sampleRate); // 自製的長回音
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); }
+  verb.buffer = ir;
+  padBus.connect(padLP); padLP.connect(bus);
+  bus.connect(dry); dry.connect(master); bus.connect(verb); verb.connect(verbLP); verbLP.connect(wet); wet.connect(master);
   master.connect(comp); comp.connect(ctx.destination);
 
-  function tone(type, freq, t, peak, attack, dur) {
+  function tone(type, freq, t, peak, attack, dur, out) {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.value = freq;
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(peak, t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.05);
+    o.connect(g); g.connect(out || bus); o.start(t); o.stop(t + dur + 0.05);
   }
-  const pluck = (m, t, v, dur = 1.7) => tone('triangle', hz(m), t, v, 0.015, dur);
-  const bell = (m, t, v, dur = 2) => { tone('sine', hz(m), t, v, 0.01, dur); tone('sine', hz(m) * 2.01, t, v * 0.25, 0.01, dur * 0.6); };
-  function pad(m, t, dur) {
-    for (const d of [-5, 5]) {
+  const note = (m, t, peak, attack, dur, harm) => { // 基音 + 兩個很輕的泛音,聲音像柔和的電鋼琴,小喇叭也聽得到
+    tone('sine', hz(m), t, peak, attack, dur);
+    tone('sine', hz(m) * 2, t, peak * harm, attack, dur * 0.6);
+    tone('sine', hz(m) * 3, t, peak * harm * 0.4, attack, dur * 0.35);
+  };
+  function pad(m, t) { // 慢慢浮現、慢慢退去的和弦,前後兩個和弦會互相交疊
+    for (const d of [-4, 4]) {
       const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = hz(m); o.detune.value = d;
+      o.type = 'triangle'; o.frequency.value = hz(m); o.detune.value = d;
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.045, t + 1.3);
-      g.gain.setValueAtTime(0.045, t + dur);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.5);
-      o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 1.6);
+      g.gain.exponentialRampToValueAtTime(0.013, t + 3);
+      g.gain.setValueAtTime(0.013, t + CH);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + CH + 3.5);
+      o.connect(g); g.connect(padBus); o.start(t); o.stop(t + CH + 3.6);
     }
   }
-  let next = 0, step = 0;
+  let t0 = 0, nChord = 0, nArp = 2, bellAt = 0;
   return {
-    reset(t) { next = t; },
+    reset(t) { t0 = t; nChord = 0; nArp = 2; bellAt = t + 8; },
     fill(until) { // 把 until 之前的音符排進時間表
-      if (next < ctx.currentTime) next = ctx.currentTime + 0.05;
-      while (next < until) {
-        const s = step % 32, ch = CHORDS[s >> 3], k = s & 7;
-        if (k === 0) ch.pad.forEach(m => pad(m, next, STEP * 8));
-        if (Math.random() < 0.92) pluck(ch.arp[PATTERN[k]], next, k === 0 || k === 4 ? 0.2 : 0.14);
-        if ((k === 0 || k === 4) && Math.random() < 0.5) pluck(ch.arp[Math.random() * 5 | 0] + 12, next + STEP / 2, 0.07, 2.2);
-        next += STEP; step++;
+      const now = ctx.currentTime;
+      while (t0 + nChord * CH < until) {
+        const at = t0 + nChord * CH;
+        if (at + CH > now) CHORDS[nChord % 4].pad.forEach(m => pad(m, at));
+        nChord++;
+      }
+      while (t0 + nArp * ARP < until) {
+        const at = t0 + nArp * ARP + (Math.random() - 0.5) * 0.08, j = nArp & 7;
+        if (at > now) note(CHORDS[(nArp >> 3) % 4].arp[PATTERN[j]], at, (j === 0 ? 0.11 : 0.08) + Math.random() * 0.02, 0.03, 3.6, 0.35);
+        nArp++;
+      }
+      while (bellAt < until) {
+        const sc = CHORDS[Math.floor((bellAt - t0) / CH) % 4].bell;
+        if (bellAt > now) note(sc[Math.random() * sc.length | 0], bellAt, 0.08 + Math.random() * 0.03, 0.06, 5.5, 0.25);
+        bellAt += 5 + Math.random() * 5;
       }
     },
-    chime() { const t = ctx.currentTime + 0.02; [76, 79, 84].forEach((m, i) => bell(m, t + i * 0.09, 0.18, 1.6)); },
+    chime() { const t = ctx.currentTime + 0.02; [79, 84, 88].forEach((m, i) => note(m, t + i * 0.13, 0.1, 0.015, 3, 0.2)); },
     fanfare() {
       const t = ctx.currentTime + 0.05;
-      [72, 76, 79, 84, 88].forEach((m, i) => bell(m, t + i * 0.12, 0.2, 2));
-      [72, 79, 84, 88].forEach(m => bell(m, t + 0.8, 0.14, 3.5));
+      [72, 76, 79, 84, 88].forEach((m, i) => note(m, t + i * 0.18, 0.11, 0.02, 4, 0.2));
+      [72, 79, 84, 88].forEach(m => note(m, t + 1.2, 0.07, 0.08, 5, 0.2));
     },
   };
 }
