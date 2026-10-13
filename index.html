@@ -43,9 +43,14 @@
   .cell.given { color: var(--given); font-weight: bold; }
   .cell.user { color: var(--user); }
   .cell.bad { color: var(--err); background: #fde0dd; }
+  .cell.bad.sel { background: #f8b4ad; }
+  .cell.bad::after { content: '✕'; position: absolute; top: 1px; right: 3px; font-size: calc(var(--size) / 26); font-weight: normal; }
+  .cell.clash { box-shadow: inset 0 0 0 3px var(--err); }
+  @keyframes shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+  .cell.shake { animation: shake .4s; }
   @keyframes wave { 40% { background-color: #9be3a8; transform: scale(1.18); z-index: 2; } }
   .cell.wave { animation: wave .9s ease; }
-  @media (prefers-reduced-motion: reduce) { .cell.wave { animation: none; background-color: #9be3a8; } }
+  @media (prefers-reduced-motion: reduce) { .cell.wave { animation: none; background-color: #9be3a8; } .cell.shake { animation: none; } }
   .notes { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; height: 100%; font-size: calc(var(--size) / 34); color: #777; }
   .notes span { display: flex; align-items: center; justify-content: center; }
   #pad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 12px; width: min(94vw, 560px); }
@@ -56,6 +61,7 @@
          box-shadow: 0 4px 14px rgba(0,0,0,.25); }
   #msg:empty { display: none; }
   #msg.win { background: #1e8e3e; }
+  #msg.err { background: #b3261e; }
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 12px; }
   .modal[hidden] { display: none; }
   .card { background: #fff; border-radius: 22px; padding: 22px 20px; width: min(92vw, 420px); text-align: center; font-size: 21px; max-height: 92vh; overflow: auto; }
@@ -290,6 +296,7 @@ function makeSynth(ctx) {
       }
     },
     chime() { const t = ctx.currentTime + 0.02; [79, 84, 88].forEach((m, i) => note(m, t + i * 0.13, 0.1, 0.015, 3, 0.2)); },
+    oops() { const t = ctx.currentTime + 0.02; [64, 60].forEach((m, i) => note(m, t + i * 0.14, 0.1, 0.01, 1.2, 0.1)); },
     fanfare() {
       const t = ctx.currentTime + 0.05;
       [72, 76, 79, 84, 88].forEach((m, i) => note(m, t + i * 0.18, 0.11, 0.02, 4, 0.2));
@@ -415,6 +422,7 @@ function build() {
 }
 function render() {
   const cells = boardEl.children, sv = sel >= 0 ? cur[sel] : 0;
+  const selWrong = sel >= 0 && !puz[sel] && sv && sv !== sol[sel]; // 選到填錯的格子時,和它重複的格子會被框起來
   for (let i = 0; i < 81; i++) {
     const el = cells[i], v = cur[i], r = i / 9 | 0, c = i % 9;
     let cls = 'cell';
@@ -425,6 +433,8 @@ function render() {
       else if (r === sr || c === sc || ((r / 3 | 0) === (sr / 3 | 0) && (c / 3 | 0) === (sc / 3 | 0))) cls += ' peer';
     }
     if (puz[i]) cls += ' given'; else if (v) cls += ' user';
+    if (!puz[i] && v && v !== sol[i]) cls += ' bad';
+    if (selWrong && i !== sel && v === sv && PEERS[sel].includes(i)) cls += ' clash';
     if (wave.has(i)) cls += ' wave';
     el.className = cls;
     if (v) el.textContent = v;
@@ -450,7 +460,8 @@ function input(n) {
     }
   }
   render(); save();
-  if (!checkWin()) celebrate(sel, before);
+  if (checkWin()) return;
+  if (n && !noteMode && n !== sol[sel]) wrong(sel, n); else celebrate(sel, before);
 }
 function undo() {
   const h = history.pop(); if (!h || done) return;
@@ -467,15 +478,22 @@ function hint() {
 }
 function check() {
   if (done) return;
-  const cells = boardEl.children; let bad = 0;
-  for (let i = 0; i < 81; i++) if (cur[i] && cur[i] !== sol[i]) { cells[i].classList.add('bad'); bad++; }
-  say(bad ? `有 ${bad} 格填錯了(紅色)` : '目前都是對的,繼續加油!');
-  if (bad) setTimeout(render, 2500);
+  const bad = cur.filter((v, i) => v && v !== sol[i]).length;
+  say(bad ? `有 ${bad} 格填錯了(紅色)` : '目前都是對的,繼續加油!', 5000, bad ? 'err' : '');
 }
 let msgTimer;
-function say(t, ms = 5000) { // 訊息浮在畫面上方,幾秒後自動消失(ms=0 表示不自動消失)
-  clearTimeout(msgTimer); msgEl.textContent = t; msgEl.className = '';
+function say(t, ms = 5000, cls = '') { // 訊息浮在畫面上方,幾秒後自動消失(ms=0 表示不自動消失)
+  clearTimeout(msgTimer); msgEl.textContent = t; msgEl.className = cls;
   if (t && ms) msgTimer = setTimeout(() => { msgEl.textContent = ''; }, ms);
+}
+
+// 填錯時:格子變紅並晃一下、說明原因、播一聲輕輕的提示音(紅色會一直留著,直到改對或清除)
+function wrong(i, n) {
+  const where = ['同一橫排', '同一直排', '同一個小方塊'];
+  const k = unitIdx(i).findIndex(u => UNITS[u].some(c => c !== i && cur[c] === n));
+  say('❌ ' + (k >= 0 ? where[k] + '已經有 ' + n + ' 了' : '這格填錯了,再想想看'), 6000, 'err');
+  Sound.fx('oops');
+  const el = boardEl.children[i]; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
 }
 
 // 完成一橫排/一直排/一個小方塊時:格子依序亮起,並有提示音
@@ -498,7 +516,7 @@ function win() {
   done = true; clearInterval(timer);
   const r = recordWin(); renderSummary();
   try { localStorage.removeItem('sudoku'); } catch (e) {}
-  say('🎉 恭喜完成!', 0); msgEl.className = 'win';
+  say('🎉 恭喜完成!', 0, 'win');
   Sound.fx('fanfare'); confetti();
   const L = LEVELS[level].name;
   let rec = '';
